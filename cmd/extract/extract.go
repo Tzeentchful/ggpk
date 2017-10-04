@@ -1,15 +1,24 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/Patrolavia/ggpk/afs"
+	"github.com/tzeentchful/ggpk/afs"
+	"gopkg.in/kothar/brotli-go.v0/dec"
 )
+
+var ddsMagic = [3]byte{0x44, 0x44, 0x53}
+var compressedMagic = [3]byte{0x43, 0x4D, 0x50}
+
+var ddsLinks map[string][]string
 
 var (
 	recursive bool
@@ -17,6 +26,7 @@ var (
 )
 
 func init() {
+	ddsLinks = make(map[string][]string)
 	flag.BoolVar(&recursive, "r", false, "Recursive extract directory, ignored if extracting file.")
 	flag.StringVar(&destDir, "d", ".", "Extract files to directory `N`.")
 	flag.Parse()
@@ -82,23 +92,55 @@ func saveFile(file *afs.File, f *os.File) {
 	if err != nil {
 		log.Fatalf("While reading file %s: %s", file.Path, err)
 	}
-
-	fn := filepath.FromSlash(destDir + file.Path)
-	dirname := filepath.Dir(fn)
-	if err := os.MkdirAll(dirname, os.FileMode(0777)); err != nil {
-		log.Fatalf("Cannot create directory %s: %s", dirname, err)
+	
+	if len(data) >= 3 && filepath.Ext(file.Path) == ".dds" {
+		if !bytes.Equal(data[:3], ddsMagic[:]) {
+			if data[0] == 0x2A {
+				path := "/" + string(data[1:])
+				osPath := filepath.FromSlash(destDir + path)
+				if _, err := os.Stat(osPath); err == nil {
+					data, _ = ioutil.ReadFile(osPath)
+					fmt.Printf("\nFileLink Exists: %s \n", osPath)
+				} else {
+					ddsLinks[path] = append(ddsLinks[path], file.Path)
+					fmt.Printf("\nAdding Path: %s \n", path)
+					return
+				}
+			} else {
+				compressLen := binary.LittleEndian.Uint32(data[:4])
+				data = decompressFile(data[4:], compressLen)
+			}
+		}
+	} else if len(data) >= 3 && bytes.Equal(data[:3], compressedMagic[:]) {
+		compressLen := binary.LittleEndian.Uint32(data[3:7])
+		data = decompressFile(data[7:], compressLen)
 	}
 
-	dest, err := os.Create(fn)
-	if err != nil {
-		log.Fatalf("Error creating file %s: %s", file.Path, err)
+	towrite := []string{}
+	towrite = append(towrite, file.Path)
+	if len(ddsLinks[file.Path]) > 0 {
+		fmt.Printf("we have a links \n")
+		towrite = append(towrite, ddsLinks[file.Path]...)
 	}
-	defer dest.Close()
 
-	if _, err := dest.Write(data); err != nil {
-		log.Fatalf("Error writing file %s: %s", file.Path, err)
+	for i := 0; i < len(towrite); i++ {
+		fn := filepath.FromSlash(destDir + towrite[i])
+		dirname := filepath.Dir(fn)
+		if err := os.MkdirAll(dirname, os.FileMode(0777)); err != nil {
+			log.Fatalf("Cannot create directory %s: %s", dirname, err)
+		}
+
+		dest, err := os.Create(fn)
+		if err != nil {
+			log.Fatalf("Error creating file %s: %s", file.Path, err)
+		}
+		defer dest.Close()
+
+		if _, err := dest.Write(data); err != nil {
+			log.Fatalf("Error writing file %s: %s", file.Path, err)
+		}
+		fmt.Printf("%d bytes\n", file.Size)
 	}
-	fmt.Printf("%d bytes\n", file.Size)
 }
 
 func saveDir(dir *afs.Directory, f *os.File) {
@@ -111,4 +153,14 @@ func saveDir(dir *afs.Directory, f *os.File) {
 			saveDir(child, f)
 		}
 	}
+}
+
+func decompressFile(compressed []byte, expectedLen uint32) []byte {
+	decompressed, _ := dec.DecompressBuffer(compressed, make([]byte, expectedLen))
+
+	/*if uint32(len(decompressed)) != expectedLen {
+		log.Fatalf("Error decompressing DDS  expected size: %d decompressed size: %d", expectedLen, len(decompressed))
+	}*/
+
+	return decompressed
 }

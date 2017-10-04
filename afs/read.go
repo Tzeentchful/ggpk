@@ -6,7 +6,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/Patrolavia/ggpk/record"
+	"github.com/Tzeentchful/ggpk/record"
 )
 
 // FromGGPK builds afs structure from ggpk file

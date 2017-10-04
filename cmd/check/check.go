@@ -7,8 +7,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/Patrolavia/ggpk/afs"
-	"github.com/Patrolavia/ggpk/record"
+	"github.com/Tzeentchful/ggpk/afs"
+	"github.com/Tzeentchful/ggpk/record"
 )
 
 func fatal(i interface{}) {

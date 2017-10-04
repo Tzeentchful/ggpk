@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/Patrolavia/ggpk/afs"
+	"github.com/Tzeentchful/ggpk/afs"
 )
 
 func main() {

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Patrolavia/ggpk/afs"
-	"github.com/Patrolavia/ggpk/generate"
-	"github.com/Patrolavia/ggpk/record"
+	"github.com/Tzeentchful/ggpk/afs"
+	"github.com/Tzeentchful/ggpk/generate"
+	"github.com/Tzeentchful/ggpk/record"
 )
 
 func main() {

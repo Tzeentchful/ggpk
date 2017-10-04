@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Patrolavia/ggpk/record"
+	"github.com/Tzeentchful/ggpk/record"
 )
 
 // File represents a virtual file in afs
